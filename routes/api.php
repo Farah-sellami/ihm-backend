@@ -53,11 +53,13 @@ Route::get('/categories', [CategorieController::class, 'index']);
 Route::get('/categories/{categorie}', [CategorieController::class, 'show']);
 Route::get('/categorie/{id}/scategories', [CategorieController::class, 'getScategories']);
 
+
 Route::get('/scategories', [ScategorieController::class, 'index']);
 Route::get('/scategories/{scategorie}', [ScategorieController::class, 'show']);
 Route::get('/categories/{categorieID}/subcategories', [ScategorieController::class, 'getByCategory']);
 
 Route::get('/postes', [PosteController::class, 'index']);
+Route::get('/allpostes', [PosteController::class, 'index2']);
 Route::get('/postes/{id}', [PosteController::class, 'show']);
 
 Route::get('/offres', [OffreController::class, 'index']);

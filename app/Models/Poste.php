@@ -10,13 +10,13 @@ class Poste extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['titre', 'photos', 'description', 'prixIniale', 'duree', 'estApprouvé', 'scategorieID',  'user_id'];
+    protected $fillable = ['titre', 'photos', 'description', 'prixIniale', 'duree', 'estApprouvé', 'scategorieID',  'user_id' , 'endDate'];
 
        // Définir l'attribut photos comme un tableau
        protected $casts = [
         'photos' => 'array',
     ];
-    
+
     public function scategorie()
     {
         return $this->belongsTo(Scategorie::class, "scategorieID");

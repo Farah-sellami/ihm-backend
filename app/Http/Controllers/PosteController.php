@@ -10,16 +10,59 @@ use Illuminate\Support\Facades\Log;
 class PosteController extends Controller
 {
     // Show all postes
-    public function index(Request $request)
+//     public function index(Request $request)
+// {
+//     try {
+//         $scategorieID = $request->input('scategorie_id');
+
+//         if (!$scategorieID) {
+//             return response()->json(['error' => 'scategorie_id is required'], 400);
+//         }
+
+//         $postes = Poste::with(['scategorie', 'user'])->filterByScategorie($scategorieID)->get();
+
+//         return response()->json($postes);
+//     } catch (\Exception $e) {
+//         // Log the error for debugging
+//         Log::error('Error fetching postes: ' . $e->getMessage(), [
+//             'trace' => $e->getTraceAsString(),
+//         ]);
+
+//         // Return a JSON response with the error message
+//         return response()->json([
+//             'error' => 'An error occurred while fetching postes.',
+//             'message' => $e->getMessage(),
+//         ], 500);
+//     }
+// }
+
+// Show all postes with optional filters
+public function index(Request $request)
 {
     try {
         $scategorieID = $request->input('scategorie_id');
+        $minPrice = $request->input('min_price');
+        $maxPrice = $request->input('max_price');
 
         if (!$scategorieID) {
             return response()->json(['error' => 'scategorie_id is required'], 400);
         }
 
-        $postes = Poste::with(['scategorie', 'user'])->filterByScategorie($scategorieID)->get();
+        $query = Poste::with(['scategorie', 'user']);
+
+        // Filtrer par scategorie
+        if (method_exists(Poste::class, 'scopeFilterByScategorie')) {
+            $query->filterByScategorie($scategorieID);
+        } else {
+            $query->where('scategorieID', $scategorieID); // Assurez-vous que le nom de la colonne est correct
+        }
+
+        // Filtrer par plage de prix si disponible
+        if ($minPrice && $maxPrice) {
+            $query->whereBetween('prixIniale', [$minPrice, $maxPrice]);
+        }
+
+        $postes = $query->get();
 
         return response()->json($postes);
     } catch (\Exception $e) {
@@ -28,13 +71,18 @@ class PosteController extends Controller
             'trace' => $e->getTraceAsString(),
         ]);
 
-        // Return a JSON response with the error message
         return response()->json([
             'error' => 'An error occurred while fetching postes.',
             'message' => $e->getMessage(),
         ], 500);
     }
 }
+
+public function index2()
+    {
+        $postes = Poste::all();
+        return response()->json($postes);
+    }
 
     // Show a single poste
     public function show($id)
