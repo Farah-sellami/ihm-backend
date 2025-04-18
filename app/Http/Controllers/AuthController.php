@@ -85,10 +85,11 @@ class AuthController extends Controller
         if (!$user || !Hash::check($request->motDePasse, $user->motDePasse)) {
             return response()->json(['error' => 'Invalid credentials'], 401);
         }
-         // Vérifier si l'utilisateur est bloqué
-         if ($user->status === 'blocked') {
-            return response()->json(['message' => 'Votre compte est bloqué. Veuillez contacter l\'administrateur.'], 403);
-        }
+       // Vérification si l'utilisateur est bloqué
+    if ($user->is_blocked) {  // Vérification de la colonne 'is_blocked'
+        return response()->json(['message' => 'Votre compte est bloqué. Veuillez contacter l\'administrateur.'], 403);
+    }
+
 
         $token = JWTAuth::fromUser($user);
 

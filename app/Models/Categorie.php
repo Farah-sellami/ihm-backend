@@ -9,7 +9,7 @@ class Categorie extends Model
 {
     use HasFactory;
     protected $fillable = [
-        'titre','description'
+        'titre','description', 'image',
         ];
 public function scategories()
 {

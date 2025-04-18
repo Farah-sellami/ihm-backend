@@ -5,15 +5,36 @@ namespace App\Http\Controllers;
 use App\Models\Poste;
 use App\Models\Scategorie;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class PosteController extends Controller
 {
     // Show all postes
-    public function index()
-    {
-        $postes = Poste::with('scategorie')->get();
+    public function index(Request $request)
+{
+    try {
+        $scategorieID = $request->input('scategorie_id');
+
+        if (!$scategorieID) {
+            return response()->json(['error' => 'scategorie_id is required'], 400);
+        }
+
+        $postes = Poste::with(['scategorie', 'user'])->filterByScategorie($scategorieID)->get();
+
         return response()->json($postes);
+    } catch (\Exception $e) {
+        // Log the error for debugging
+        Log::error('Error fetching postes: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+        ]);
+
+        // Return a JSON response with the error message
+        return response()->json([
+            'error' => 'An error occurred while fetching postes.',
+            'message' => $e->getMessage(),
+        ], 500);
     }
+}
 
     // Show a single poste
     public function show($id)
@@ -25,45 +46,95 @@ class PosteController extends Controller
     // Create a new poste
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'titre' => 'required|string|max:100',
-            'photos' => 'required|string|max:255',
-            'description' => 'required|string|max:100',
-            'prixIniale' => 'required|numeric',
-            'duree' => 'required|string|max:50',
-            'estApprouvé' => 'required|boolean',
-            'scategorieID' => 'required|exists:scategories,id',  // Ensure scategorieID exists in scategories table
-        ]);
+        try {
+            $validated = $request->validate([
+                'titre' => 'required|string|max:100',
+                'photos' => 'required|array|max:4', // Validation pour accepter un tableau avec un maximum de 4 fichiers
+                'photos.*' => 'image|mimes:jpg,jpeg,png,gif,webp|max:2048', // Chaque fichier doit être une image
+                'description' => 'required|string|max:100',
+                'prixIniale' => 'required|numeric',
+                'duree' => 'required|string|max:50',
+                'estApprouvé' => 'required|boolean',
+                'scategorieID' => 'required|exists:scategories,id',
+            ]);
 
-        $poste = Poste::create($validated);
+            // Traiter l'upload des photos
+            $photosUrls = [];
+            foreach ($request->file('photos') as $photo) {
+                $uploadedFileUrl = Cloudinary::upload($photo->getRealPath())->getSecurePath();
+                $photosUrls[] = $uploadedFileUrl; // Ajouter chaque URL au tableau
+            }
 
-        return response()->json([
-            'message' => 'Poste created successfully',
-            'poste' => $poste,
-        ], 201);
+            // Créer le poste avec les URLs des photos
+            $validated['photos'] = $photosUrls;
+            $poste = Poste::create($validated);
+
+            return response()->json([
+                'message' => 'Poste created successfully',
+                'poste' => $poste,
+            ], 201);
+
+        } catch (\Exception $e) {
+            // Log l'erreur pour le débogage
+            Log::error('Error creating poste: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'An error occurred while creating the poste.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
+
 
     // Update an existing poste
     public function update(Request $request, $id)
     {
-        $poste = Poste::findOrFail($id);
+        try {
+            $poste = Poste::findOrFail($id);
 
-        $validated = $request->validate([
-            'titre' => 'sometimes|required|string|max:100',
-            'photos' => 'sometimes|required|string|max:255',
-            'description' => 'sometimes|required|string|max:100',
-            'prixIniale' => 'sometimes|required|numeric',
-            'duree' => 'sometimes|required|string|max:50',
-            'estApprouvé' => 'sometimes|required|boolean',
-            'scategorieID' => 'sometimes|required|exists:scategories,id',
-        ]);
+            $validated = $request->validate([
+                'titre' => 'sometimes|required|string|max:100',
+                'photos' => 'sometimes|array|max:4', // Validation pour un tableau de photos
+                'photos.*' => 'image|mimes:jpg,jpeg,png,gif,webp|max:2048', // Chaque fichier doit être une image
+                'description' => 'sometimes|required|string|max:100',
+                'prixIniale' => 'sometimes|required|numeric',
+                'duree' => 'sometimes|required|string|max:50',
+                'estApprouvé' => 'sometimes|required|boolean',
+                'scategorieID' => 'sometimes|required|exists:scategories,id',
+            ]);
 
-        $poste->update($validated);
+            // Si de nouvelles photos sont envoyées, les uploader sur Cloudinary
+            if ($request->has('photos')) {
+                $photosUrls = [];
+                foreach ($request->file('photos') as $photo) {
+                    $uploadedFileUrl = Cloudinary::upload($photo->getRealPath())->getSecurePath();
+                    $photosUrls[] = $uploadedFileUrl;
+                }
 
-        return response()->json([
-            'message' => 'Poste updated successfully',
-            'poste' => $poste,
-        ]);
+                // Mettre à jour le champ photos
+                $validated['photos'] = $photosUrls;
+            }
+
+            // Mettre à jour le poste
+            $poste->update($validated);
+
+            return response()->json([
+                'message' => 'Poste updated successfully',
+                'poste' => $poste,
+            ]);
+        } catch (\Exception $e) {
+            // Log l'erreur pour le débogage
+            Log::error('Error updating poste: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'An error occurred while updating the poste.',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     // Delete a poste
@@ -76,4 +147,77 @@ class PosteController extends Controller
             'message' => 'Poste deleted successfully',
         ]);
     }
+
+    public function approvePoste($id)
+{
+    try {
+        $poste = Poste::findOrFail($id);
+
+        // Changer l'état de 'estApprouvé'
+        $poste->estApprouvé = true;
+        $poste->save();
+
+        return response()->json([
+            'message' => 'Poste approuvé avec succès',
+            'poste' => $poste,
+        ]);
+    } catch (\Exception $e) {
+        // Log l'erreur pour le débogage
+        Log::error('Error approving poste: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+        ]);
+
+        return response()->json([
+            'error' => 'An error occurred while approving the poste.',
+            'message' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+public function disapprovePoste($id)
+{
+    try {
+        $poste = Poste::findOrFail($id);
+
+        // Changer l'état de 'estApprouvé' à false
+        $poste->estApprouvé = false;
+        $poste->save();
+
+        return response()->json([
+            'message' => 'Poste désapprouvé avec succès',
+            'poste' => $poste,
+        ]);
+    } catch (\Exception $e) {
+        // Log l'erreur pour le débogage
+        Log::error('Error disapproving poste: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+        ]);
+
+        return response()->json([
+            'error' => 'An error occurred while disapproving the poste.',
+            'message' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+public function getPostesfiltred(Request $request)
+{
+    $filter = $request->query('filter'); // Filtre des postes
+    $page = $request->query('page', 1);  // Par défaut, la page est 1
+
+    $query = Poste::query();
+
+    if ($filter) {
+        $query->where('est_approuvé', $filter === 'approved' ? true : false);
+    }
+
+    $postes = $query->paginate(10, ['*'], 'page', $page);
+
+    return response()->json([
+        'postes' => $postes->items(),
+        'totalPages' => $postes->lastPage(),
+    ]);
+}
+
+
 }

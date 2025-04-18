@@ -36,6 +36,12 @@ Route::middleware(['auth:api'])->group(function () {
     Route::post('/postes', [PosteController::class, 'store']);
     Route::put('/postes/{id}', [PosteController::class, 'update']);
     Route::delete('/postes/{id}', [PosteController::class, 'destroy']);
+    Route::put('/postes/{id}/approve', [PosteController::class, 'approvePoste']);
+    Route::put('/postes/{id}/disapprove', [PosteController::class, 'disapprovePoste']);
+    Route::get('/postesfiltre', [PosteController::class, 'getPostesfiltred']);
+
+
+
 
     Route::post('/offres', [OffreController::class, 'store']);
     Route::put('/offres/{id}', [OffreController::class, 'update']);
@@ -45,7 +51,7 @@ Route::middleware(['auth:api'])->group(function () {
 // 🔓 Public Routes
 Route::get('/categories', [CategorieController::class, 'index']);
 Route::get('/categories/{categorie}', [CategorieController::class, 'show']);
-Route::get('/categorie/{id}/sous-categories', [CategorieController::class, 'getSousCategories']);
+Route::get('/categorie/{id}/scategories', [CategorieController::class, 'getScategories']);
 
 Route::get('/scategories', [ScategorieController::class, 'index']);
 Route::get('/scategories/{scategorie}', [ScategorieController::class, 'show']);
@@ -56,3 +62,4 @@ Route::get('/postes/{id}', [PosteController::class, 'show']);
 
 Route::get('/offres', [OffreController::class, 'index']);
 Route::get('/offres/{id}', [OffreController::class, 'show']);
+Route::get('/offres/poste/{posteId}', [OffreController::class, 'getOffresByPoste']);

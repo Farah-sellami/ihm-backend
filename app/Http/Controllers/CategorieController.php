@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Categorie;
 use Illuminate\Http\Request;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class CategorieController extends Controller
 {
@@ -26,24 +27,23 @@ class CategorieController extends Controller
     public function store(Request $request)
     {
         try {
-            // Validate input
             $request->validate([
                 'titre' => 'required|string|unique:categories,titre',
                 'description' => 'nullable|string',
+                'image' => 'nullable|url', // ✅ on attend une URL ici
             ]);
 
-            // Create category
-            $categorie = new Categorie([
-                'titre' => $request->input('titre'),
-                'description' => $request->input('description'),
-            ]);
-            $categorie->save();
+            $data = $request->only(['titre', 'description', 'image']); // ✅ on récupère aussi image ici
+
+            $categorie = Categorie::create($data);
 
             return response()->json($categorie, 201);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to create category', 'message' => $e->getMessage()], 500);
         }
     }
+
+
 
     /**
      * Display the specified resource.
@@ -61,22 +61,31 @@ class CategorieController extends Controller
      * Update the specified resource in storage.
      */
     public function update(Request $request, Categorie $categorie)
-    {
-        try {
-            // Validate input
-            $request->validate([
-                'titre' => 'required|string|unique:categories,titre,' . $categorie->id,
-                'description' => 'nullable|string',
-            ]);
+{
+    try {
+        $request->validate([
+            'titre' => 'required|string|unique:categories,titre,' . $categorie->id,
+            'description' => 'nullable|string',
+            'image' => 'nullable|url', // ✅ on valide l'URL ici aussi
+        ]);
 
-            // Update category
-            $categorie->update($request->all());
 
-            return response()->json($categorie, 200);
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to update category', 'message' => $e->getMessage()], 500);
+        $data = $request->only(['titre', 'description']);
+
+        if ($request->hasFile('image')) {
+            // (Optionnel) Supprimer l’ancienne image de Cloudinary si tu stockes l’ID public
+            $uploadedFileUrl = Cloudinary::upload($request->file('image')->getRealPath())->getSecurePath();
+            $data['image'] = $uploadedFileUrl;
         }
+
+        $categorie->update($data);
+
+        return response()->json($categorie, 200);
+    } catch (\Exception $e) {
+        return response()->json(['error' => 'Failed to update category', 'message' => $e->getMessage()], 500);
     }
+}
+
 
     /**
      * Remove the specified resource from storage.
@@ -92,17 +101,21 @@ class CategorieController extends Controller
     }
 
     //Pour récupérer les sous-catégories (scategories) associées à une catégorie
-    public function getSousCategories($id)
-{
-    $categorie = Categorie::with('scategories')->find($id);
+    public function getScategories($id)
+    {
+        try {
+            // Find the category by ID
+            $categorie = Categorie::findOrFail($id);
 
-    if (!$categorie) {
-        return response()->json(['message' => 'Catégorie non trouvée'], 404);
+            // Access the scategories using the defined relationship
+            $scategories = $categorie->scategories;
+
+            return response()->json($scategories, 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['error' => 'Category not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to fetch scategories', 'message' => $e->getMessage()], 500);
+        }
     }
 
-    return response()->json([
-        'categorie' => $categorie->titre,
-        'sous_categories' => $categorie->scategories
-    ]);
-}
 }

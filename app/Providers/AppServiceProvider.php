@@ -22,7 +22,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-    // Observer pour les événements sur le modèle User
+   // Observer pour les événements sur le modèle User
       User::observe(UserObserver::class);
        // Créer un utilisateur admin si aucun utilisateur avec le rôle 0 n'existe
       if (!User::where('role', 0)->exists()) {

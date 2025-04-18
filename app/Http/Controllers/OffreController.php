@@ -67,4 +67,14 @@ class OffreController extends Controller
             'message' => 'Offre supprimée avec succès',
         ]);
     }
+
+    public function getOffresByPoste($posteId)
+    {
+        // Récupérer toutes les offres associées au poste donné
+        $offres = Offre::where('poste_id', $posteId)->get();
+
+       
+
+        return response()->json($offres);
+    }
 }
