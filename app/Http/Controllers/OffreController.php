@@ -7,74 +7,85 @@ use Illuminate\Http\Request;
 
 class OffreController extends Controller
 {
-    // Afficher toutes les offres
+    // Display all offers
     public function index()
     {
         $offres = Offre::all();
         return response()->json($offres);
     }
 
-    // Afficher une offre spécifique
+    // Display a specific offer
     public function show($id)
     {
         $offre = Offre::findOrFail($id);
         return response()->json($offre);
     }
 
-    // Créer une nouvelle offre
+    // Create a new offer
     public function store(Request $request)
+{
+    $validated = $request->validate([
+        'montant' => 'required|numeric|min:0.01',
+        'poste_id' => 'required|exists:postes,id',
+        'user_id' => 'required|exists:users,id' // Validate user exists
+    ]);
+
+    // Create the offer with current timestamp
+    $offre = Offre::create([
+        'montant' => $validated['montant'],
+        'dateEnchere' => now(),
+        'poste_id' => $validated['poste_id'],
+        'user_id' => $validated['user_id']
+    ]);
+
+    // Return the created offer and all offers for this post
+    $offres = Offre::where('poste_id', $validated['poste_id'])
+                  ->orderBy('created_at', 'desc')
+                  ->get();
+
+    return response()->json([
+        'message' => 'Offer created successfully',
+        'offre' => $offre,
+        'offres' => $offres,
+    ], 201);
+}
+
+    // Get offers by post
+    public function getOffresByPoste($posteId)
     {
-        $validated = $request->validate([
-            'montant' => 'required|numeric',
-            'dateEnchere' => 'required|date',
-            'poste_id' => 'required|exists:postes,id', // Poste associé doit exister
-        ]);
+        $offres = Offre::where('poste_id', $posteId)
+                     ->orderBy('created_at', 'desc')
+                     ->get();
 
-        $offre = Offre::create($validated);
-
-        return response()->json([
-            'message' => 'Offre créée avec succès',
-            'offre' => $offre,
-        ], 201);
+        return response()->json($offres);
     }
 
-    // Mettre à jour une offre
+    // Update an offer
     public function update(Request $request, $id)
     {
         $offre = Offre::findOrFail($id);
 
         $validated = $request->validate([
-            'montant' => 'sometimes|required|numeric',
-            'dateEnchere' => 'sometimes|required|date',
-            'poste_id' => 'sometimes|required|exists:postes,id',
+            'montant' => 'sometimes|required|numeric|min:0.01',
+            // Don't allow updating poste_id or dateEnchere after creation
         ]);
 
         $offre->update($validated);
 
         return response()->json([
-            'message' => 'Offre mise à jour avec succès',
+            'message' => 'Offer updated successfully',
             'offre' => $offre,
         ]);
     }
 
-    // Supprimer une offre
+    // Delete an offer
     public function destroy($id)
     {
         $offre = Offre::findOrFail($id);
         $offre->delete();
 
         return response()->json([
-            'message' => 'Offre supprimée avec succès',
+            'message' => 'Offer deleted successfully',
         ]);
-    }
-
-    public function getOffresByPoste($posteId)
-    {
-        // Récupérer toutes les offres associées au poste donné
-        $offres = Offre::where('poste_id', $posteId)->get();
-
-       
-
-        return response()->json($offres);
     }
 }
