@@ -11,44 +11,45 @@ use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 class PosteController extends Controller
 {
     // Show all postes with optional filters
-    public function index(Request $request)
-    {
-        try {
-            $scategorieID = $request->input('scategorie_id');
-            $minPrice = $request->input('min_price');
-            $maxPrice = $request->input('max_price');
+       // Fonction principale pour afficher les postes avec filtres
+       public function index(Request $request)
+       {
+           try {
+               $scategorieID = $request->input('scategorie_id');
+               $minPrice = $request->input('min_price');
+               $maxPrice = $request->input('max_price');
 
-            if (!$scategorieID) {
-                return response()->json(['error' => 'scategorie_id is required'], 400);
-            }
+               $query = Poste::with(['scategorie', 'user']);
 
-            $query = Poste::with(['scategorie', 'user']);
+               // Si aucune sous-catégorie n'est sélectionnée, on récupère tous les postes
+               if (!$scategorieID) {
+                   // Récupère tous les postes sans filtrer par sous-catégorie
+                   $postes = Poste::all();
+               } else {
+                   // Si une sous-catégorie est sélectionnée, on filtre les postes
+                   $query->where('scategorieID', $scategorieID);
 
-            if (method_exists(Poste::class, 'scopeFilterByScategorie')) {
-                $query->filterByScategorie($scategorieID);
-            } else {
-                $query->where('scategorieID', $scategorieID);
-            }
+                   // Si des plages de prix sont définies, on les applique
+                   if ($minPrice && $maxPrice) {
+                       $query->whereBetween('prixIniale', [$minPrice, $maxPrice]);
+                   }
 
-            if ($minPrice && $maxPrice) {
-                $query->whereBetween('prixIniale', [$minPrice, $maxPrice]);
-            }
+                   // Récupère les postes après application des filtres
+                   $postes = $query->get();
+               }
 
-            $postes = $query->get();
+               return response()->json($postes);
+           } catch (\Exception $e) {
+               Log::error('Error fetching postes: ' . $e->getMessage(), [
+                   'trace' => $e->getTraceAsString(),
+               ]);
 
-            return response()->json($postes);
-        } catch (\Exception $e) {
-            Log::error('Error fetching postes: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'error' => 'An error occurred while fetching postes.',
-                'message' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
+               return response()->json([
+                   'error' => 'An error occurred while fetching postes.',
+                   'message' => $e->getMessage(),
+               ], 500);
+           }
+       }
     public function index2()
     {
         $postes = Poste::all();
@@ -62,52 +63,44 @@ class PosteController extends Controller
         return response()->json($poste);
     }
 
-        // Create a new poste
-        public function store(Request $request)
-        {
-            try {
-                $validated = $request->validate([
-                    'titre' => 'required|string|max:100',
-                    'photos' => 'required|array|max:4',
-                    'photos.*' => 'url', // Validation pour vérifier que ce sont des URLs valides
-                    'description' => 'required|string|max:100',
-                    'prixIniale' => 'required|numeric',
-                    'endDate' => 'required|date',
-                    'estApprouvé' => 'required|boolean',
-                    'scategorieID' => 'required|exists:scategories,id',
-                    'user_id' => 'required|exists:users,id' // Validate user exists
-                ]);
+    public function store(Request $request)
+{
+    try {
+        $validated = $request->validate([
+            'titre' => 'required|string|max:100',
+            'photos' => 'required|array|max:4',
+            'photos.*' => 'url',
+            'description' => 'required|string|max:100',
+            'prixIniale' => 'required|numeric',
+            'endDate' => 'required|date',
+            'estApprouvé' => 'required|boolean',
+            'scategorieID' => 'required|exists:scategories,id',
+            'user_id' => 'required|exists:users,id'
+        ]);
 
-                // Les URLs des photos sont envoyées directement dans la requête
-                $photosUrls = $validated['photos'];
+        $poste = Poste::create([
+            'titre' => $validated['titre'],
+            'photos' => $validated['photos'], // $casts handles conversion to JSON
+            'description' => $validated['description'],
+            'prixIniale' => $validated['prixIniale'],
+            'endDate' => $validated['endDate'],
+            'estApprouvé' => $validated['estApprouvé'],
+            'scategorieID' => $validated['scategorieID'],
+            'user_id' => $validated['user_id']
+        ]);
 
-                $poste = Poste::create([
-                    'titre' => $validated['titre'],
-                    'photos' => json_encode($photosUrls), // Sauvegarde les URLs sous forme JSON
-                    'description' => $validated['description'],
-                    'prixIniale' => $validated['prixIniale'],
-                    'endDate' => $validated['endDate'],
-                    'estApprouvé' => $validated['estApprouvé'],
-                    'scategorieID' => $validated['scategorieID'],
-                    'user_id' => 'required|exists:users,id' // Validate user exists
-                ]);
-
-                return response()->json([
-                    'message' => 'Poste created successfully',
-                    'poste' => $poste,
-                ], 201);
-
-            } catch (\Exception $e) {
-                Log::error('Error creating poste: ' . $e->getMessage(), [
-                    'trace' => $e->getTraceAsString(),
-                ]);
-
-                return response()->json([
-                    'error' => 'An error occurred while creating the poste.',
-                    'message' => $e->getMessage(),
-                ], 500);
-            }
-        }
+        return response()->json([
+            'message' => 'Poste created successfully',
+            'poste' => $poste,
+        ], 201);
+    } catch (\Exception $e) {
+        Log::error('Error creating poste: ' . $e->getMessage());
+        return response()->json([
+            'error' => 'An error occurred while creating the poste.',
+            'message' => $e->getMessage(),
+        ], 500);
+    }
+}
 
     // Update an existing poste
     public function update(Request $request, $id)

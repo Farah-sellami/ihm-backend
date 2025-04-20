@@ -42,9 +42,7 @@ Route::middleware(['auth:api'])->group(function () {
 
 
 
-    Route::post('/offres', [OffreController::class, 'store']);
-    Route::put('/offres/{id}', [OffreController::class, 'update']);
-    Route::delete('/offres/{id}', [OffreController::class, 'destroy']);
+
 });
 
 // 🔓 Public Routes
@@ -60,9 +58,12 @@ Route::get('/categories/{categorieID}/subcategories', [ScategorieController::cla
 Route::get('/postes', [PosteController::class, 'index']);
 Route::get('/allpostes', [PosteController::class, 'index2']);
 Route::get('/postes/{id}', [PosteController::class, 'show']);
-Route::post('/Addpostes', [PosteController::class, 'store']);
+Route::post('/postes', [PosteController::class, 'store']);
 
 
 Route::get('/offres', [OffreController::class, 'index']);
 Route::get('/offres/{id}', [OffreController::class, 'show']);
 Route::get('/offres/poste/{posteId}', [OffreController::class, 'getOffresByPoste']);
+Route::post('/offres', [OffreController::class, 'store']);
+Route::put('/offres/{id}', [OffreController::class, 'update']);
+Route::delete('/offres/{id}', [OffreController::class, 'destroy']);
