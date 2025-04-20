@@ -34,6 +34,6 @@ Interface: phpMyAdmin (via XAMPP)
 
 ## ▶️ Running the App
 
-1. Clone the project:
+1. Clone the project then :
    ```bash
    php artisan serve
